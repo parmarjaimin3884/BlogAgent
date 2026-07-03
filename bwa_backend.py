@@ -105,7 +105,7 @@ writer_llm = ChatGroq(model="llama-3.3-70b-versatile", api_key=GROQ_API_KEY, tem
 
 
 # ─────────────────────────────────────────────
-# Helper: Tavily Search  ← was missing before
+# Tavily Search
 # ─────────────────────────────────────────────
 
 def _tavily_search(query: str, max_results: int = 3) -> List[dict]:
@@ -163,14 +163,14 @@ def router_node(state: State) -> dict:
     
     response = router_llm.invoke([
         SystemMessage(content=ROUTER_SYSTEM + """
-Return ONLY valid JSON like this:
-{
-  "needs_research": true,
-  "mode": "open_book",
-  "queries": ["query 1", "query 2"]
-}
-No markdown. No explanation. Just JSON.
-"""),
+                    Return ONLY valid JSON like this:
+                    {
+                    "needs_research": true,
+                    "mode": "open_book",
+                    "queries": ["query 1", "query 2"]
+                    }
+                    No markdown. No explanation. Just JSON.
+                    """),
         HumanMessage(content=f"topic: {topic}"),
     ])
 
@@ -189,6 +189,7 @@ No markdown. No explanation. Just JSON.
         "mode": decision.mode,
         "queries": decision.queries,
     }
+
 
 def route_next(state: State) -> str:
     return "research" if state["needs_research"] else "orchestrator"
@@ -236,64 +237,64 @@ def research_node(state: State) -> dict:
 # ─────────────────────────────────────────────
 
 ORCH_SYSTEM = """
-You are a senior technical blog planner.
+            You are a senior technical blog planner.
 
-Return ONLY valid JSON.
+            Return ONLY valid JSON.
 
-Do NOT wrap the JSON inside markdown.
-Do NOT explain anything.
-Do NOT use code fences.
+            Do NOT wrap the JSON inside markdown.
+            Do NOT explain anything.
+            Do NOT use code fences.
 
-JSON schema:
+            JSON schema:
 
-{
-  "blog_title": "...",
-  "audience": "...",
-  "tone": "...",
-  "blog_kind": "...",
-  "constraints": ["...", "..."],
-  "tasks": [
-    {
-      "id": 1,
-      "title": "...",
-      "goal": "...",
-      "bullets": [
-        "...",
-        "...",
-        "..."
-      ],
-      "target_words": 200,
-      "tags": [],
-      "requires_research": false,
-      "requires_citations": false,
-      "requires_code": false
-    }
-  ]
-}
+            {
+            "blog_title": "...",
+            "audience": "...",
+            "tone": "...",
+            "blog_kind": "...",
+            "constraints": ["...", "..."],
+            "tasks": [
+                {
+                "id": 1,
+                "title": "...",
+                "goal": "...",
+                "bullets": [
+                    "...",
+                    "...",
+                    "..."
+                ],
+                "target_words": 200,
+                "tags": [],
+                "requires_research": false,
+                "requires_citations": false,
+                "requires_code": false
+                }
+            ]
+            }
 
-Rules:
-- Create 5-7 tasks.
-- Every task MUST have all fields.
-- bullets must contain at least 3 items.
-- constraints must be a JSON array.
-- tasks must be a JSON array.
-- Output ONLY JSON.
-Return ONLY raw JSON.
+            Rules:
+            - Create 5-7 tasks.
+            - Every task MUST have all fields.
+            - bullets must contain at least 3 items.
+            - constraints must be a JSON array.
+            - tasks must be a JSON array.
+            - Output ONLY JSON.
+            Return ONLY raw JSON.
 
-Never stringify arrays.
+            Never stringify arrays.
 
-Correct:
-"constraints": ["AI","LLM"]
+            Correct:
+            "constraints": ["AI","LLM"]
 
-Incorrect:
-"constraints": "[\"AI\",\"LLM\"]"
+            Incorrect:
+            "constraints": "[\"AI\",\"LLM\"]"
 
-Correct:
-"tasks": [...]
+            Correct:
+            "tasks": [...]
 
-Incorrect:
-"tasks": "[...]"
-"""
+            Incorrect:
+            "tasks": "[...]"
+    """
 
 
 def orchestrator_node(state: State) -> dict:
@@ -346,7 +347,7 @@ def fanout(state: State):
                 "task": task,
                 "topic": state["topic"],
                 "plan": state["plan"],
-                "mode": state["mode"],                              # ← was missing before
+                "mode": state["mode"],                        
                 "evidence": [e.model_dump() for e in state.get("evidence", [])],
             },
         )
@@ -379,20 +380,22 @@ def worker(payload: dict) -> dict:
             SystemMessage(
                 content=(
                     "You are a senior technical writer. "
-                    "Write ONE Markdown section for a technical blog.\n\n"
+                    "Write ONE Markdown section for a blog.\n\n"
                     "Requirements:\n"
                     "- Cover the Goal and all Bullets in order.\n"
                     "- Stay within ±15% of the target word count.\n"
                     "- Output ONLY the section Markdown.\n\n"
                     "Writing Guidelines:\n"
-                    "- Be technically accurate and practical.\n"
-                    "- Use precise developer terminology.\n"
-                    "- Include a short code example, checklist, or example when appropriate.\n"
+                    "- Be accurate, clear and easy to understand.\n"
+                    "- Write for a general audience, avoid unnecessary jargon.\n"
+                    f"- Requires code example: {task.requires_code}\n"
+                    "- Only include a code example if requires_code is True.\n"
                     "- Briefly mention trade-offs or edge cases if relevant.\n"
                     "- Explain why recommended practices matter.\n\n"
                     "Formatting:\n"
                     "- Start with '## Section Title'.\n"
-                    "- Use short paragraphs, bullet lists, and fenced code blocks when useful.\n"
+                    "- Use short paragraphs and bullet lists when useful.\n"
+                    "- Fenced code blocks only when requires_code is True.\n"
                     "- Avoid fluff and marketing language."
                 )
             ),
@@ -421,7 +424,7 @@ def worker(payload: dict) -> dict:
 def reducer(state: State) -> dict:
     plan = state["plan"]
 
-    ordered = sorted(state["sections"], key=lambda x: x[0])
+    ordered = sorted(state["sections"], key=lambda x: x[0]) #sort all section by id
 
     parts = [f"# {plan.blog_title}"]
 
